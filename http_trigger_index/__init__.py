@@ -10,6 +10,8 @@ from azure.storage.blob import BlobServiceClient
 from azure.identity import DefaultAzureCredential
 import io
 import os
+import logging
+import traceback
 
 def load_band(item, band_name, match=None):
     band = rioxarray.open_rasterio(item.assets[band_name].href, overview_level=1).squeeze()
@@ -70,22 +72,27 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ADMIN)
 
 @app.route(route="http_trigger_index")
 def http_trigger_index(req: func.HttpRequest) -> func.HttpResponse:
-    catalog = pystac_client.Client.open(
-    "https://planetarycomputer.microsoft.com/api/stac/v1",
-    modifier=planetary_computer.sign_inplace,
-    )
-    time_range = "2024-04-01/2025-04-30"
-    bbox = [16.8, 51.04, 17.17, 51.21]
-    search = catalog.search(collections=["sentinel-2-l2a"], bbox=bbox, datetime=time_range)
-    items = search.item_collection()
+    try:
+        catalog = pystac_client.Client.open(
+        "https://planetarycomputer.microsoft.com/api/stac/v1",
+        modifier=planetary_computer.sign_inplace,
+        )
+        time_range = "2024-04-01/2025-04-30"
+        bbox = [16.8, 51.04, 17.17, 51.21]
+        search = catalog.search(collections=["sentinel-2-l2a"], bbox=bbox, datetime=time_range)
+        items = search.item_collection()
 
-    selected_item = min(items, key=lambda item: item.properties["eo:cloud_cover"])
+        selected_item = min(items, key=lambda item: item.properties["eo:cloud_cover"])
 
-    index = req.params.get("index", "NDVI")
-    cmap = req.params.get("cmap", "RdYlGn")
+        index = req.params.get("index", "NDVI")
+        cmap = req.params.get("cmap", "RdYlGn")
 
-    index_data = calc_index(index, selected_item)
-    blob_name = f"{index}_{cmap}.tif"
-    blob_save(index_data, blob_name, index, cmap)
+        index_data = calc_index(index, selected_item)
+        blob_name = f"{index}_{cmap}.tif"
+        blob_save(index_data, blob_name, index, cmap)
 
-    return func.HttpResponse(blob_name, status_code=200)
+        return func.HttpResponse(blob_name, status_code=200)
+    except Exception as e:
+        logging.error("Wystąpił wyjątek: %s", str(e))
+        logging.error(traceback.format_exc())
+        return func.HttpResponse(f"Błąd: {str(e)}", status_code=500)
