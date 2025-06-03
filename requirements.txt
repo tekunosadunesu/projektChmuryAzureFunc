@@ -1,0 +1,8 @@
+azure-functions
+pystac-client
+planetary-computer
+geopandas
+rioxarray
+sqlalchemy
+azure-storage-blob
+azure-identity
