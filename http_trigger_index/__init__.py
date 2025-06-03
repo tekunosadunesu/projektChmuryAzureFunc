@@ -72,6 +72,8 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ADMIN)
 
 @app.route(route="http_trigger_index")
 def http_trigger_index(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info("Wywołano funkcję http_trigger_index")
+
     try:
         catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
